@@ -58,6 +58,12 @@ def safe_filename(filename):
 	return new_filename.strip(' .')
 
 if __name__ == '__main__':
-  import sys
-  download_videos(sys.argv[1])
-
+  import io, os, sys
+  what = sys.argv[1]
+  if os.path.exists(what):
+    with io.open(what, 'rt') as f:
+      for line in f:
+        print(line)
+        download_videos(line[:-1])
+  else:
+    download_videos(what)
