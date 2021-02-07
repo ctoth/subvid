@@ -39,12 +39,14 @@ def download_videos(subreddit):
   for post in reddit_posts(data):
     if post['media_type'] != 'video':
       continue
-    print("Downloading {title} from {author}".format(**post))
     vid_page = session.get(post['url']).content
     vid_links = find_mp4_links(vid_page)
     for link in vid_links:
-      vid = session.get(link)
       fname = safe_filename('{author} - {title}.mp4'.format(**post))
+      if (os.path.exists(fname)):
+        continue
+      print("Downloading {title} from {author}".format(**post))
+      vid = session.get(link)
       with open(fname, 'wb') as f:
         f.write(vid.content)
 
