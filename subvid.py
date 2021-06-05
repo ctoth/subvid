@@ -1,6 +1,8 @@
+import os
 import requests
 import lxml.html
 import lxml.cssselect
+
 
 session = requests.session()
 session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:77.0) Gecko/20190101 Firefox/77.0'
@@ -8,7 +10,8 @@ session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:77.0) Ge
 def find_mp4_links(page_html):
   tree = lxml.html.fromstring(page_html)
   vids = tree.cssselect('source[src*=".mp4"]')
-  urls = set([i.get('src') for i in vids])
+  meta_vids = tree.cssselect('meta[property="og:video"]')
+  urls = set([i.get('src') for i in vids] + [j.get('content') for j in meta_vids])
   mobile_urls = set()
   for url in urls:
     if url.endswith('-mobile.mp4') and url[:-11] + '.mp4' in urls:
@@ -28,6 +31,7 @@ def reddit_posts(subreddit):
       'slug': c['name'],
       'media_title': media.get('title'),
       'media_type': media.get('type'),
+      'subreddit': c['subreddit'],
 }
 
 def retrieve_subreddit(sub):
@@ -42,13 +46,21 @@ def download_videos(subreddit):
     vid_page = session.get(post['url']).content
     vid_links = find_mp4_links(vid_page)
     for link in vid_links:
-      fname = safe_filename('{author} - {title}.mp4'.format(**post))
-      if (os.path.exists(fname)):
+      fname = determine_filename(post)
+      fpath = os.path.dirname(fname)
+      if not os.path.exists(fpath):
+        os.makedirs(fpath)
+      if os.path.exists(fname):
         continue
       print("Downloading {title} from {author}".format(**post))
       vid = session.get(link)
+
       with open(fname, 'wb') as f:
         f.write(vid.content)
+
+
+def determine_filename(post):
+  return os.path.abspath(os.path.join(post['subreddit'], safe_filename(post['author']), safe_filename(post['title'])+'.mp4'))
 
 
 def safe_filename(filename):
@@ -62,7 +74,7 @@ def safe_filename(filename):
 if __name__ == '__main__':
   import io, os, sys
   what = sys.argv[1]
-  if os.path.exists(what):
+  if os.path.isfile(what):
     with io.open(what, 'rt') as f:
       for line in f:
         print(line)
